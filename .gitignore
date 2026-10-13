@@ -1,0 +1,11 @@
+*.app/
+*.zip
+*.dmg
+SHA256SUMS.txt
+.DS_Store
+config.json
+status.json
+*.key
+*.p12
+*.mobileprovision
+work/
