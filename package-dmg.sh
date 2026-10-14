@@ -4,10 +4,11 @@ cd "${0:A:h}"
 stage_dir=$(mktemp -d -t fortibar-dmg)
 trap 'rm -rf "$stage_dir"' EXIT
 ./build.sh
+version=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' FortiBar.app/Contents/Info.plist)
 ditto FortiBar.app "$stage_dir/FortiBar.app"
 ln -s /Applications "$stage_dir/Applications"
-cat > "$stage_dir/Install.txt" <<'TEXT'
-FortiBar 1.1.2 — macOS 13+ / Apple Silicon and Intel
+cat > "$stage_dir/Install.txt" <<TEXT
+FortiBar $version — macOS 13+ / Apple Silicon and Intel
 
 1. Drag FortiBar.app into Applications, then eject this disk image.
 2. Open FortiBar from Applications.
@@ -26,7 +27,7 @@ included in this disk image.
 
 https://github.com/yusufani/FortiBar
 TEXT
-dmg_path="$PWD/FortiBar-1.1.2-universal.dmg"
-hdiutil create -volname "FortiBar 1.1.2" -srcfolder "$stage_dir" -format UDZO -ov "$dmg_path"
+dmg_path="$PWD/FortiBar-$version-universal.dmg"
+hdiutil create -volname "FortiBar $version" -srcfolder "$stage_dir" -format UDZO -ov "$dmg_path"
 hdiutil verify "$dmg_path"
 shasum -a 256 "${dmg_path:t}" > SHA256SUMS.txt

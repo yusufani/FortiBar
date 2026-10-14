@@ -55,7 +55,7 @@ it does not continuously retry or automatically reconnect without your input.
 
 ## Download and install
 
-Download [FortiBar 1.1.2 DMG](https://github.com/yusufani/FortiBar/releases/download/v1.1.2/FortiBar-1.1.2-universal.dmg),
+Download [FortiBar 1.1.3 DMG](https://github.com/yusufani/FortiBar/releases/download/v1.1.3/FortiBar-1.1.3-universal.dmg),
 open it, and drag **FortiBar** to **Applications**. Eject the disk image and launch
 FortiBar from Applications. Follow the setup steps below.
 
