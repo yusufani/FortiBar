@@ -1,5 +1,10 @@
 # FortiBar
 
+[![FortiBar in action — click to watch the recording](assets/demo.gif)](assets/demo.mp4)
+
+*Real screen recording: click Connect VPN, then FortiBar hides itself and the
+FortiClient window after connecting. [Watch the video](assets/demo.mp4).*
+
 **Connect to your FortiClient VPN with one click. Keep the connection, clear the screen.**
 
 [![Build](https://github.com/yusufani/FortiBar/actions/workflows/check.yml/badge.svg)](https://github.com/yusufani/FortiBar/actions/workflows/check.yml)
@@ -138,10 +143,14 @@ Accessibility entry if the running app reports no access. Check the app's
 settings window or local `status.json`; a command launched from a privileged
 terminal may report a different permission state.
 
-FortiBar reads the actual FortiClient status window, including windows omitted
-from the hidden application's normal Accessibility children. A leftover tunnel
-IP is never treated as proof that the VPN is connected. If the window cannot be
-read, FortiBar shows **Check VPN** so you can open FortiClient and inspect it.
+FortiBar checks the configured profile and connection controls in FortiClient.
+To confirm a connection, the IP shown by FortiClient must also match an active
+IPv4 tunnel with a gateway route. Stale window text, another VPN, or a leftover
+IP alone cannot confirm a connection. This checks local tunnel configuration;
+it does not guarantee that a remote server is reachable. If the window cannot
+be read, FortiBar shows **Check VPN**.
+Settings explains why Connect is unavailable, including missing Accessibility
+permission, an existing connection, or an attempt in progress.
 No network requests or telemetry are sent by FortiBar itself.
 
 ## Remove automatic startup

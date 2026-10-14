@@ -129,6 +129,7 @@ final class Controller: NSObject, NSApplicationDelegate {
     var profileInput: NSTextField?
     var usernameInput: NSTextField?
     var connectButton: NSButton?
+    var connectionStatus: NSTextField?
     var startupInfo = ""
     func configureStartup() {
         let legacy = FileManager.default.fileExists(atPath: NSHomeDirectory() + "/Library/LaunchAgents/com.fortibar.app.plist")
@@ -181,9 +182,27 @@ final class Controller: NSObject, NSApplicationDelegate {
     }
     func updateSetup() {
         let trusted = AXIsProcessTrusted()
-        let permissionText = trusted ? "Accessibility access granted. Ready to connect." : "Allow FortiBar in System Settings → Privacy & Security → Accessibility. This lets FortiBar fill the FortiClient login fields."
+        let permissionText = trusted ? "Accessibility permission: granted." : "Accessibility permission: required. Allow FortiBar in System Settings → Privacy & Security → Accessibility."
         setupText?.stringValue = "Click Connect VPN in the menu bar when disconnected. Your password is retrieved from Keychain. Complete MFA in FortiClient if required. Once connected, the FortiClient window is hidden.\n\n\(permissionText)"
         permissionButton?.isHidden = trusted
+        let reason: String
+        if !trusted {
+            reason = "Connect unavailable: Accessibility permission required."
+        } else if !settings.ready {
+            reason = "Connect unavailable: save a VPN profile and username."
+        } else if busy {
+            reason = "Connection attempt in progress. If macOS asks for Keychain access, approve it in the system dialog."
+        } else if state == .connecting {
+            reason = "Connecting… waiting for FortiClient. Complete MFA if requested."
+        } else if state == .connected {
+            reason = "VPN is already connected. Connect becomes available when disconnected."
+        } else if state == .unknown {
+            reason = "VPN status could not be confirmed. Connect will check FortiClient first."
+        } else {
+            reason = "VPN is disconnected. Ready to connect. macOS may request Keychain access."
+        }
+        connectionStatus?.stringValue = reason
+        connectButton?.toolTip = reason
         connectButton?.isEnabled = trusted && settings.ready && state != .connected && state != .connecting && !busy
         window?.title = trusted ? "FortiBar — Settings" : "FortiBar — Accessibility Required"
         if trusted && awaitingPermission {
@@ -203,9 +222,20 @@ final class Controller: NSObject, NSApplicationDelegate {
         guard let root = fortiRoot() else { return (.disconnected, "FortiClient will open") }
         let nodes = tree(root)
         let text = nodes.map(label).joined(separator: "\n")
+        // FortiClient can retain old status text in its accessibility tree.
+        // The actionable login control takes precedence over that text.
+        if let action = identified(nodes, "vpn-connect-button") ?? button(nodes, ["Connect", "Bağlan"]), enabled(action) {
+            return (.disconnected, "Click to connect")
+        }
         if text.contains("VPN Connected") {
-            guard connectedProfile(nodes) == config.profile else { return (.unknown, "A different VPN is connected; check FortiClient") }
-            return (.connected, "VPN connected")
+            guard let disconnect = button(nodes, ["Disconnect", "Bağlantıyı Kes"]), enabled(disconnect) else {
+                return (.unknown, "Connected text has no active Disconnect control; open FortiClient to check")
+            }
+            guard let info = connectionInfo(nodes), info.profile == config.profile else { return (.unknown, "A different VPN is connected; check FortiClient") }
+            guard activeTunnelMatches(info.ip) else {
+                return (.disconnected, "No active routed tunnel matches the FortiClient status")
+            }
+            return (.connected, "VPN connected; FortiClient IP matches the active routed tunnel")
         }
         if text.contains("Connecting") { return (.connecting, "FortiClient is connecting") }
         if identified(nodes, "vpn-connect-button") != nil || button(nodes, ["Connect", "Bağlan"]) != nil {
@@ -222,7 +252,7 @@ final class Controller: NSObject, NSApplicationDelegate {
             DispatchQueue.main.async {
                 self.checking = false
                 guard settings.profile == config.profile, settings.username == config.username else { self.refresh(); return }
-                if observed.1 == "VPN connected" && self.state != .connected {
+                if observed.0 == .connected && self.state != .connected {
                     NSRunningApplication.runningApplications(withBundleIdentifier: fortiID).first?.hide()
                 }
                 if let started = self.connectStarted, observed.0 != .connected {
@@ -328,12 +358,16 @@ final class Controller: NSObject, NSApplicationDelegate {
     @objc func showSetup() {
         awaitingPermission = !AXIsProcessTrusted()
         if let existing = window { updateSetup(); existing.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true); return }
-        let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 480, height: 390), styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 480, height: 430), styleMask: [.titled, .closable], backing: .buffered, defer: false)
         w.title = "FortiBar — Setup"; w.isReleasedWhenClosed = false; w.center()
         let content = w.contentView!
         let text = NSTextField(wrappingLabelWithString: "")
-        text.frame = NSRect(x: 22, y: 205, width: 436, height: 158); content.addSubview(text)
+        text.frame = NSRect(x: 22, y: 255, width: 436, height: 148); content.addSubview(text)
         setupText = text
+        let status = NSTextField(wrappingLabelWithString: "")
+        status.font = .boldSystemFont(ofSize: 13)
+        status.frame = NSRect(x: 22, y: 205, width: 436, height: 46)
+        content.addSubview(status); connectionStatus = status
         for (title, y) in [("VPN profile", 165), ("Username", 125)] {
             let label = NSTextField(labelWithString: title); label.frame = NSRect(x: 22, y: y, width: 100, height: 25); content.addSubview(label)
         }
